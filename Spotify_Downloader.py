@@ -17,7 +17,7 @@ For the program to work, the playlist URL pattern must follow the format of
 
 from __future__ import annotations
 
-__version__ = "2.6.0"
+__version__ = "2.7.0"
 
 import atexit
 import concurrent.futures
@@ -47,7 +47,7 @@ from PyQt6.QtCore import (
     pyqtSignal,
     pyqtSlot,
 )
-from PyQt6.QtGui import QCursor, QImage, QPixmap
+from PyQt6.QtGui import QCursor, QIcon, QImage, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -57,6 +57,7 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
+    QLabel,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -2717,9 +2718,57 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._is_downloading = False  # Track download state for stop button
         self._cancel_event = threading.Event()  # Event for cooperative thread cancellation
 
-        self.SONGINFORMATION.setGraphicsEffect(
+        # Unificación completa en una sola ventana / tarjeta contenedora
+        self.resize(750, 500)
+        self.centralwidget.resize(750, 500)
+
+        # 'frame' es ahora la ventana única que contiene toda la interfaz
+        self.frame.setGeometry(QRect(20, 20, 710, 460))
+        self.frame.setGraphicsEffect(
             QGraphicsDropShadowEffect(blurRadius=25, xOffset=2, yOffset=2)
         )
+
+        # Reposicionar controles de ventana (cerrar y configuración) en la esquina superior derecha de la ventana única
+        self.Closed.setGeometry(QRect(675, 12, 22, 22))
+        self.SettingsBtn.setGeometry(QRect(645, 12, 22, 22))
+
+        # Reubicar panel SONGINFORMATION como sección interna derecha de 'frame'
+        self.SONGINFORMATION.setParent(self.frame)
+        self.SONGINFORMATION.setGeometry(QRect(360, 45, 335, 400))
+        self.SONGINFORMATION.show()
+        self.label_3.setGeometry(QRect(10, 5, 315, 25))
+        self.CoverImg.setGeometry(QRect(97, 35, 140, 140))
+        self.label_9.setGeometry(QRect(15, 195, 65, 25))
+        self.SongName.setGeometry(QRect(85, 195, 235, 25))
+        self.label_6.setGeometry(QRect(15, 225, 65, 25))
+        self.YearText.setGeometry(QRect(85, 225, 235, 25))
+        self.label_11.setGeometry(QRect(15, 255, 65, 25))
+        self.ArtistNameText.setGeometry(QRect(85, 255, 235, 25))
+        self.SongDownloadprogressBar.setGeometry(QRect(20, 375, 295, 6))
+
+        # Configurar icono desde spotify.svg
+        icon_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "web-app",
+            "sunnify-webclient",
+            "public",
+            "spotify.svg",
+        )
+        if os.path.exists(icon_path):
+            self._app_icon = QIcon(icon_path)
+            self.setWindowIcon(self._app_icon)
+            # Icono junto al título en la barra superior
+            self.app_icon_label = QLabel(self.frame)
+            self.app_icon_label.setGeometry(QRect(20, 14, 28, 28))
+            self.app_icon_label.setPixmap(self._app_icon.pixmap(28, 28))
+            self.app_icon_label.setScaledContents(True)
+            self.title.setGeometry(QRect(55, 10, 200, 35))
+            self.title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.author.setGeometry(QRect(57, 40, 260, 16))
+
+        # El preview ahora está integrado de forma permanente en la GUI
+        self.showPreviewCheck.hide()
+
         self.PlaylistLink.returnPressed.connect(self.on_returnButton)
         self.DownloadBtn.clicked.connect(self.on_returnButton)
         self.showPreviewCheck.stateChanged.connect(self.show_preview)
@@ -2775,10 +2824,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         muted_text = f"rgba({c.red()}, {c.green()}, {c.blue()}, 180)"
 
         self.setStyleSheet(f"""
-            QFrame#frame, #SONGINFORMATION {{
+            QFrame#frame {{
                 background-color: {card_bg};
                 border: 1px solid {mid_color};
                 border-radius: 12px;
+            }}
+            QFrame#SONGINFORMATION {{
+                background-color: transparent;
+                border: none;
+                border-left: 1px solid {mid_color};
+                border-radius: 0px;
             }}
             QLabel {{
                 color: {text_fg};
@@ -3329,6 +3384,15 @@ if __name__ == "__main__":
     except Exception as exc:  # log so a scaling failure (rendering bugs) is diagnosable
         log.debug("high-dpi setup skipped: %s", exc)
     app = QApplication(sys.argv)
+    _icon_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "web-app",
+        "sunnify-webclient",
+        "public",
+        "spotify.svg",
+    )
+    if os.path.exists(_icon_path):
+        app.setWindowIcon(QIcon(_icon_path))
     # wake python every 200ms during exec() so a pending signal's handler runs
     # promptly (qt's c++ loop otherwise defers python signals until a qt slot)
     _signal_waker = QTimer()

@@ -7,11 +7,13 @@
 
 ## 🌟 Características Principales
 
-- 🎨 **Interfaz Adaptable:** Se sincroniza automáticamente con la paleta de colores del sistema (modo claro y oscuro nativo).
+- 🪟 **Ventana Única Integrada:** Diseño unificado en un solo marco moderno con panel de descargas y tarjeta de información de pista permanente lado a lado.
+- 🎨 **Ícono Oficial de Spotify:** Integración del ícono gráfico de Spotify tanto en la barra de tareas como en la cabecera principal de la ventana.
+- 🌓 **Interfaz Adaptable:** Se sincroniza automáticamente con la paleta de colores del sistema (modo claro y oscuro nativo).
 - 📁 **Nomenclatura Personalizada de Canciones:** Formato `"Artista - Track - Título"` por defecto (`Artist - 01 - Song.mp3`).
 - 💿 **Carpetas de Álbum Inteligentes:** Formato de carpeta por defecto `"Artista - Año - Álbum"` (`The Beatles - 1969 - Abbey Road`).
 - 🎬 **Exportación de Enlaces de YouTube:** Botón para guardar la lista de canciones encontradas en un archivo HTML estilizado con tema oscuro y nombrado automáticamente como el álbum.
-- 🏷️ **Metadatos y Carátulas Automáticas:** Casillas de *Show Preview* y *Add Meta Tags* activadas por defecto para una experiencia completa.
+- 🏷️ **Metadatos y Carátulas Automáticas:** Extracción e incrustación automática de carátulas en alta resolución y etiquetas ID3.
 - ⚠️ **Gestión de Descargas Fallidas:** Panel interactivo para visualizar y copiar al portapapeles la lista de pistas no completadas.
 - ⚡ **Descargas en Paralelo:** Descarga acelerada multihilo con cancelación inmediata y segura.
 - 🎛️ **Múltiples Formatos:** MP3, M4A, Opus (128 / 192 / 256 / 320 kbps), FLAC y WAV (lossless).
