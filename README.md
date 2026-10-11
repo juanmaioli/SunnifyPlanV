@@ -7,6 +7,7 @@
 
 ## 🌟 Características Principales
 
+- 🌐 **Interfaz Íntegramente en Español:** Textos, botones, diálogos de ajustes, etiquetas de pistas y mensajes de estado localizados al español.
 - 🪟 **Ventana Única Integrada:** Diseño unificado en un solo marco moderno con panel de descargas y tarjeta de información de pista permanente lado a lado.
 - 🎨 **Ícono Oficial de Spotify:** Integración del ícono gráfico de Spotify tanto en la barra de tareas como en la cabecera principal de la ventana.
 - 🌓 **Interfaz Adaptable:** Se sincroniza automáticamente con la paleta de colores del sistema (modo claro y oscuro nativo).

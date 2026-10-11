@@ -17,7 +17,7 @@ For the program to work, the playlist URL pattern must follow the format of
 
 from __future__ import annotations
 
-__version__ = "2.7.0"
+__version__ = "2.8.0"
 
 import atexit
 import concurrent.futures
@@ -1896,7 +1896,7 @@ class SettingsDialog(QDialog):
 
     def __init__(self, parent, config: dict):
         super().__init__(parent)
-        self.setWindowTitle("Sunnify Settings")
+        self.setWindowTitle("Ajustes de Sunnify")
         self.setModal(True)
         # min width so long macOS paths fit; height is sized at the end once hints exist
         self.setMinimumWidth(560)
@@ -1906,13 +1906,13 @@ class SettingsDialog(QDialog):
 
         # Read-only QLineEdit: long paths scroll instead of truncating;
         # tooltip carries the full value.
-        self._folder_label = QLineEdit(self._config.get("download_path") or "(not set)")
+        self._folder_label = QLineEdit(self._config.get("download_path") or "(no configurado)")
         self._folder_label.setReadOnly(True)
         self._folder_label.setFrame(False)
         self._folder_label.setCursorPosition(0)
         self._folder_label.setToolTip(self._folder_label.text())
         self._folder_label.setStyleSheet("QLineEdit { background: transparent; padding: 0; }")
-        browse = QPushButton("Choose folder")
+        browse = QPushButton("Elegir carpeta")
         browse.clicked.connect(self._choose_folder)
 
         folder_row = QHBoxLayout()
@@ -1960,7 +1960,7 @@ class SettingsDialog(QDialog):
 
         # display text <-> stored value; stored value is what ffmpeg -ar gets
         self._sample_rate_labels = {
-            "auto": "auto (keep source)",
+            "auto": "automático (mantener origen)",
             "44100": "44.1 kHz",
             "48000": "48 kHz",
         }
@@ -1988,56 +1988,51 @@ class SettingsDialog(QDialog):
         # one list so the label column is measured from the longest label, not a magic width
         _settings = [
             (
-                "Download folder:",
+                "Carpeta de descarga:",
                 folder_row,
-                "Each playlist or album becomes its own folder inside this directory.",
+                "Cada lista o álbum se descargará en su propia carpeta dentro de este directorio.",
             ),
             (
-                "Audio format:",
+                "Formato de audio:",
                 self._format_cb,
-                "mp3 plays everywhere. m4a is smaller at the same quality. "
-                "flac and wav are lossless (much larger files).",
+                "mp3 es compatible en todas partes. m4a es más ligero a la misma calidad. "
+                "flac y wav son sin pérdida (archivos considerablemente más grandes).",
             ),
             (
-                "Audio quality:",
+                "Calidad de audio:",
                 self._quality_cb,
-                "Applies to lossy formats only (mp3, m4a, opus). "
-                "320 kbps is the highest quality these formats support.",
+                "Aplica únicamente a formatos con pérdida (mp3, m4a, opus). "
+                "320 kbps es la calidad máxima disponible.",
             ),
             (
-                "Track number in filename:",
+                "Número de pista en nombre:",
                 self._include_track_number_cb,
-                'Off → "Song - Artist.mp3".   On → "01. Song - Artist.mp3".   '
-                "Files sort in playlist order in your file manager.",
+                'Desactivado → "Canción - Artista.mp3".   Activado → "01. Canción - Artista.mp3".   '
+                "Los archivos se ordenan en la secuencia original de la lista.",
             ),
             (
-                "Filename style:",
+                "Estilo de nombre:",
                 self._filename_style_cb,
-                '"Song only" keeps the artist out of the filename; every tag '
-                "(artist, album, art) is still written, and two different songs "
-                "with the same title get a short id suffix instead of "
-                "overwriting each other. Applies to new downloads; files "
-                "already on disk keep their names.",
+                '"Song only" omite el artista en el nombre del archivo. Todas las etiquetas '
+                "(artista, álbum, portada) se guardan de igual manera.",
             ),
             (
-                "Filename preview:",
+                "Vista previa de nombre:",
                 self._filename_preview,
                 "",
             ),
             (
-                "Sample rate:",
+                "Frecuencia de muestreo:",
                 self._sample_rate_cb,
-                "auto keeps the source rate (YouTube audio is 48 kHz). "
-                "44.1 kHz matches CDs and older players. "
-                "Applies to mp3, flac and wav; opus and m4a keep their source rate.",
+                "automático mantiene la frecuencia de YouTube (48 kHz). "
+                "44.1 kHz coincide con calidad CD de reproductores tradicionales. "
+                "Aplica a mp3, flac y wav.",
             ),
             (
-                "Use closest result if no match:",
+                "Búsqueda aproximada si no hay coincidencia exacta:",
                 self._loose_match_cb,
-                "Off (default): skips a track rather than risk the wrong audio. "
-                "On: falls back to the closest result by length, which recovers "
-                "songs whose YouTube title is in another script (Greek, Cyrillic, "
-                "Korean) but may let an occasional cover or remix slip through.",
+                "Desactivado (por defecto): saltea la pista para evitar descargar audio erróneo. "
+                "Activado: selecciona el resultado más cercano por duración.",
             ),
         ]
         _fm = QFontMetrics(self.font())
@@ -2087,7 +2082,7 @@ class SettingsDialog(QDialog):
         btns.rejected.connect(self.reject)
         # Gives users a one-click way to grab the log file to attach to a bug
         # report, without hunting through ~/Library/Logs or %LOCALAPPDATA%.
-        open_logs = btns.addButton("Open logs folder", QDialogButtonBox.ButtonRole.ActionRole)
+        open_logs = btns.addButton("Abrir carpeta de logs", QDialogButtonBox.ButtonRole.ActionRole)
         open_logs.setToolTip(log_file_path())
         open_logs.clicked.connect(self._open_logs)
 
@@ -2979,7 +2974,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Prompt user to select download location. Returns True if selected."""
         folder = QFileDialog.getExistingDirectory(
             self,
-            "Select Download Folder",
+            "Seleccionar carpeta de descarga",
             os.path.expanduser("~"),
             QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
         )
@@ -3010,7 +3005,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._config.update({s.key: s.coerce(new.get(s.key, s.default)) for s in SETTINGS})
             self._config["download_path"] = self.download_path
             save_config(self._config)
-            self.statusMsg.setText("Settings saved")
+            self.statusMsg.setText("Ajustes guardados")
 
     @pyqtSlot()
     def on_returnButton(self):
@@ -3021,7 +3016,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         spotify_url = self.PlaylistLink.text().strip()
         if not spotify_url:
-            self.statusMsg.setText("Please enter a Spotify URL")
+            self.statusMsg.setText("Por favor ingresá un enlace de Spotify")
             return
 
         if not get_ffmpeg_path():
@@ -3040,25 +3035,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.statusMsg.setText("FFmpeg not found")
             QMessageBox.critical(
                 self,
-                "FFmpeg Required",
-                f"FFmpeg is required for audio downloads and conversion but was not found on your system.\n\n{instructions}",
+                "FFmpeg requerido",
+                f"FFmpeg es necesario para descargar y convertir el audio pero no se encontró en tu sistema.\n\n{instructions}",
             )
             return
 
         # ALWAYS prompt for download location on first download
         if not self._download_path_set:
-            self.statusMsg.setText("Select download location...")
+            self.statusMsg.setText("Seleccioná la carpeta de descarga...")
             if not self._prompt_download_location():
-                self.statusMsg.setText("Download cancelled - no folder selected")
+                self.statusMsg.setText("Descarga cancelada - no se seleccionó carpeta")
                 return
 
         # Verify the selected path is still writable
         if not self._ensure_download_path():
-            self.statusMsg.setText("Cannot write to download folder")
+            self.statusMsg.setText("No se puede escribir en la carpeta de descarga")
             QMessageBox.warning(
                 self,
-                "Invalid Download Location",
-                f"Cannot write to:\n{self.download_path}\n\nPlease select a different folder.",
+                "Ubicación de descarga inválida",
+                f"No se puede escribir en:\n{self.download_path}\n\nPor favor seleccioná otra carpeta.",
             )
             if not self._prompt_download_location():
                 return
@@ -3066,12 +3061,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         try:
             # Validate URL type
             url_type, _ = detect_spotify_url_type(spotify_url)
-            self.statusMsg.setText(f"Detected: {url_type}")
+            self.statusMsg.setText(f"Detectado: {url_type}")
 
             # Reset cancel event and set downloading state
             self._cancel_event = threading.Event()
             self._is_downloading = True
-            self.DownloadBtn.setText("Stop")
+            self.DownloadBtn.setText("Detener")
             self._last_failed_tracks = []
             self.failed_btn.hide()
 
@@ -3103,11 +3098,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except ValueError as e:
             self.statusMsg.setText(str(e))
             self._is_downloading = False
-            self.DownloadBtn.setText("Download")
+            self.DownloadBtn.setText("Descargar")
 
     def _stop_download(self):
         """Stop the current download gracefully using cooperative cancellation."""
-        self.statusMsg.setText("Stopping download...")
+        self.statusMsg.setText("Deteniendo descarga...")
         self.DownloadBtn.setEnabled(False)
 
         # Signal cancellation via event (thread checks this periodically)
@@ -3120,7 +3115,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def thread_finished(self):
         """Reset UI state when download thread finishes."""
         self._is_downloading = False
-        self.DownloadBtn.setText("Download")
+        self.DownloadBtn.setText("Descargar")
         self.DownloadBtn.setEnabled(True)
         scraper = self._live_scraper()
         if scraper is not None:
