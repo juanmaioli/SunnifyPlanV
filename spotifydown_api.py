@@ -107,6 +107,8 @@ class PlaylistInfo:
     description: str | None
     cover_url: str | None
     track_count: int | None = None
+    release_date: str | None = None
+    content_type: str = "playlist"
 
 
 @dataclass
@@ -363,12 +365,22 @@ class SpotifyEmbedAPI:
             except Exception:
                 pass  # Fall back to embed count
 
+        # Extract release date (available on album entities)
+        release_date = None
+        rd = entity.get("releaseDate")
+        if isinstance(rd, dict):
+            release_date = rd.get("isoString", "")[:10]  # YYYY-MM-DD
+        elif isinstance(rd, str):
+            release_date = rd
+
         return PlaylistInfo(
             name=str(name),
             owner=str(subtitle) if subtitle else None,
             description=entity.get("description"),
             cover_url=cover_url,
             track_count=track_count,
+            release_date=release_date,
+            content_type=content_type,
         )
 
     def iter_playlist_tracks(

@@ -8,7 +8,9 @@
 ## 🌟 Características Principales
 
 - 🎨 **Interfaz Adaptable:** Se sincroniza automáticamente con la paleta de colores del sistema (modo claro y oscuro nativo).
-- 📁 **Nomenclatura Personalizada:** Formato `"Artista - Track - Título"` por defecto (`Artist - 01 - Song.mp3`), además de opciones tradicionales.
+- 📁 **Nomenclatura Personalizada de Canciones:** Formato `"Artista - Track - Título"` por defecto (`Artist - 01 - Song.mp3`).
+- 💿 **Carpetas de Álbum Inteligentes:** Formato de carpeta por defecto `"Artista - Año - Álbum"` (`The Beatles - 1969 - Abbey Road`).
+- 🎬 **Exportación de Enlaces de YouTube:** Botón para guardar la lista de canciones encontradas en un archivo HTML estilizado con tema oscuro y nombrado automáticamente como el álbum.
 - 🏷️ **Metadatos y Carátulas Automáticas:** Casillas de *Show Preview* y *Add Meta Tags* activadas por defecto para una experiencia completa.
 - ⚠️ **Gestión de Descargas Fallidas:** Panel interactivo para visualizar y copiar al portapapeles la lista de pistas no completadas.
 - ⚡ **Descargas en Paralelo:** Descarga acelerada multihilo con cancelación inmediata y segura.
@@ -47,14 +49,22 @@ python sunnify_cli.py download "https://open.spotify.com/playlist/..."
 
 ---
 
-## ⚙️ Formatos de Nombre Disponibles
+## ⚙️ Formatos de Nombre y Carpetas
 
+### Nombres de Archivo de Audio
 | Opción en Ajustes | Ejemplo Generado |
 | :--- | :--- |
 | **Artist - Track - Song** *(Por defecto)* | `The Beatles - 01 - Yesterday.mp3` |
 | **Artist - Song** | `The Beatles - Yesterday.mp3` |
 | **Song - Artist** | `Yesterday - The Beatles.mp3` |
 | **Song only** | `Yesterday.mp3` |
+
+### Formato de Carpetas
+| Tipo de Descarga | Formato de la Carpeta | Ejemplo |
+| :--- | :--- | :--- |
+| **Álbum** | `{Artista} - {Año} - {Álbum}` | `The Beatles - 1969 - Abbey Road` |
+| **Playlist** | `{Playlist} - {Dueño}` | `Top 50 Global - Spotify` |
+| **Canción Individual** | Carpeta raíz seleccionada | `~/Music/Sunnify/` |
 
 ---
 

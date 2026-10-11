@@ -167,6 +167,31 @@ class TestMusicScraper:
         result = scraper.format_playlist_name(meta_no_owner)
         assert result == "Solo Playlist - Spotify"
 
+        # Album with artist and release_date
+        meta_album = PlaylistInfo(
+            name="Abbey Road",
+            owner="The Beatles",
+            description=None,
+            cover_url=None,
+            release_date="1969-09-26",
+        )
+        assert (
+            scraper.format_playlist_name(meta_album, content_type="album")
+            == "The Beatles - 1969 - Abbey Road"
+        )
+
+        # Album with artist but no release_date
+        meta_album_no_date = PlaylistInfo(
+            name="Help!",
+            owner="The Beatles",
+            description=None,
+            cover_url=None,
+        )
+        assert (
+            scraper.format_playlist_name(meta_album_no_date, content_type="album")
+            == "The Beatles - Help!"
+        )
+
     def test_prepare_playlist_folder(self, tmp_path):
         """Test playlist folder creation."""
         from Spotify_Downloader import MusicScraper

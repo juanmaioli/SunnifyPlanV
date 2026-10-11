@@ -17,7 +17,7 @@ For the program to work, the playlist URL pattern must follow the format of
 
 from __future__ import annotations
 
-__version__ = "2.5.0"
+__version__ = "2.6.0"
 
 import atexit
 import concurrent.futures
@@ -608,6 +608,7 @@ class MusicScraper(QThread):
         self.spotifydown_api = None
         self._cancel_event = cancel_event or threading.Event()
         self._failed_tracks: list[str] = []  # Track failed downloads
+        self._youtube_links: list[dict] = []  # Track found YouTube links (title, artists, url)
         # Output options. audio_format must be a key of SUPPORTED_FORMATS;
         # audio_quality only applies to lossy formats (mp3/m4a/opus).
         self.audio_format = audio_format if audio_format in SUPPORTED_FORMATS else "mp3"
@@ -623,6 +624,7 @@ class MusicScraper(QThread):
         self.loose_match = bool(loose_match)
         self._counter_lock = threading.Lock()
         self._failed_lock = threading.Lock()
+        self._links_lock = threading.Lock()
         self._filename_lock = threading.Lock()
         self._manifest_lock = threading.Lock()
         self._manifest_path: str | None = None
@@ -719,8 +721,17 @@ class MusicScraper(QThread):
             return f"{track_num:02d}. {stem}.{ext}"
         return f"{stem}.{ext}"
 
-    def format_playlist_name(self, metadata: PlaylistInfo):
+    def format_playlist_name(self, metadata: PlaylistInfo, content_type: str | None = None) -> str:
         owner = metadata.owner or "Spotify"
+        ctype = content_type or getattr(metadata, "content_type", "playlist")
+        if ctype == "album":
+            year = ""
+            rel_date = getattr(metadata, "release_date", None)
+            if rel_date:
+                year = str(rel_date)[:4]
+            if year:
+                return f"{owner} - {year} - {metadata.name}".strip(" -")
+            return f"{owner} - {metadata.name}".strip(" -")
         return f"{metadata.name} - {owner}".strip(" -")
 
     def prepare_playlist_folder(self, base_folder, playlist_name):
@@ -1141,6 +1152,12 @@ class MusicScraper(QThread):
                 if os.path.exists(expected_path):
                     if label != "default":
                         log.info("recovered via %s player clients", label)
+                    with self._links_lock:
+                        self._youtube_links.append({
+                            "title": expected_title or os.path.basename(base),
+                            "artists": expected_artists or "",
+                            "url": video_url,
+                        })
                     return expected_path
 
         log.debug("no playable audio landed for query set %r", queries)
@@ -1386,6 +1403,8 @@ class MusicScraper(QThread):
             self.counter = 0
         with self._failed_lock:
             self._failed_tracks.clear()
+        with self._links_lock:
+            self._youtube_links.clear()
         with self._filename_lock:
             self._in_flight_files.clear()
         self._parallel_mode = False
@@ -1410,6 +1429,8 @@ class MusicScraper(QThread):
             raise RuntimeError(str(exc)) from exc
 
         metadata = spotify_api.get_playlist_metadata(playlist_id, content_type=content_type)
+        if not getattr(metadata, "content_type", None):
+            metadata.content_type = content_type
         playlist_display_name = self.format_playlist_name(metadata)
         self.song_Album.emit(playlist_display_name)
 
@@ -1561,6 +1582,8 @@ class MusicScraper(QThread):
             self.audio_quality,
         )
         self.song_Album.emit("Single Track Download")
+        with self._links_lock:
+            self._youtube_links.clear()
 
         if not os.path.exists(music_folder):
             os.makedirs(music_folder)
@@ -2479,6 +2502,203 @@ class FailedDownloadsDialog(QDialog):
             clipboard.setText("\n".join(self._failed_tracks))
 
 
+def generate_links_html(links: list[dict], title: str = "Canciones encontradas en YouTube") -> str:
+    """Generate a clean, beautiful dark-themed HTML document listing the songs and their YouTube links."""
+    import html as _html
+
+    items_html = []
+    for idx, item in enumerate(links, 1):
+        t = _html.escape(item.get("title") or "Sin título")
+        a = _html.escape(item.get("artists") or "Artista desconocido")
+        u = _html.escape(item.get("url") or "#")
+        items_html.append(f"""
+        <li class="song-card">
+          <div class="song-info">
+            <span class="song-index">{idx:02d}</span>
+            <div class="song-text">
+              <span class="song-title">{t}</span>
+              <span class="song-artist">{a}</span>
+            </div>
+          </div>
+          <a class="yt-btn" href="{u}" target="_blank" rel="noopener noreferrer">
+            <svg class="yt-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+            Ver en YouTube
+          </a>
+        </li>""")
+
+    cards_markup = "\n".join(items_html) if items_html else "<li class='empty-msg'>No se registraron enlaces aún.</li>"
+    total_count = len(links)
+
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{_html.escape(title)} - Sunnify</title>
+  <style>
+    :root {{
+      --bg: #0f1117;
+      --card-bg: #181b24;
+      --card-hover: #222634;
+      --border: #282d3d;
+      --text: #f0f3f6;
+      --text-muted: #8b949e;
+      --yt-red: #ff0000;
+      --yt-red-hover: #e60000;
+      --accent: #1ed760;
+    }}
+    * {{
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 32px 16px;
+    }}
+    .container {{
+      max-width: 760px;
+      margin: 0 auto;
+    }}
+    header {{
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }}
+    h1 {{
+      font-size: 22px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }}
+    .badge {{
+      background-color: var(--border);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }}
+    ul.song-list {{
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }}
+    .song-card {{
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }}
+    .song-card:hover {{
+      background: var(--card-hover);
+      border-color: #3b4259;
+    }}
+    .song-info {{
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }}
+    .song-index {{
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-muted);
+      width: 24px;
+      text-align: right;
+      flex-shrink: 0;
+    }}
+    .song-text {{
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }}
+    .song-title {{
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }}
+    .song-artist {{
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }}
+    .yt-btn {{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 0, 0, 0.12);
+      color: #ff4e4e;
+      border: 1px solid rgba(255, 0, 0, 0.3);
+      padding: 8px 14px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }}
+    .yt-btn:hover {{
+      background: var(--yt-red);
+      color: #ffffff;
+      border-color: var(--yt-red);
+    }}
+    .empty-msg {{
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+      background: var(--card-bg);
+      border-radius: 10px;
+      border: 1px dashed var(--border);
+    }}
+    footer {{
+      margin-top: 32px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎵 {_html.escape(title)}</h1>
+      <span class="badge">{total_count} canciones</span>
+    </header>
+    <ul class="song-list">
+      {cards_markup}
+    </ul>
+    <footer>
+      Generado por Sunnify &middot; Descargador de Spotify a YouTube
+    </footer>
+  </div>
+</body>
+</html>"""
+
+
 # Main Window
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -2507,7 +2727,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.AddMetaDataCheck.setChecked(True)
 
         self.Closed.clicked.connect(self.exitprogram)
-        self.Select_Home.clicked.connect(self.Linkedin)
+        self._last_youtube_links = []
+        self._current_album_name = ""
+        self.Select_Home.setText("📥 Guardar enlaces de YouTube (HTML)")
+        self.Select_Home.setToolTip("Guardar la lista de canciones encontradas en un archivo HTML con estilo oscuro")
+        self.Select_Home.clicked.connect(self.save_youtube_links_html)
         self.SettingsBtn.clicked.connect(self.open_settings)
 
         # Botón para inspeccionar descargas fallidas (inicialmente oculto)
@@ -2850,6 +3074,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self._last_failed_tracks = list(failed_list)
                 self.failed_btn.setText(f"⚠️ Ver fallidas ({len(self._last_failed_tracks)})")
                 self.failed_btn.show()
+            yt_links = getattr(scraper, "_youtube_links", []) or []
+            if yt_links:
+                self._last_youtube_links = list(yt_links)
         if hasattr(self, "scraper_thread"):
             self.scraper_thread.deleteLater()  # Clean up the thread properly
 
@@ -2897,6 +3124,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @pyqtSlot(str)
     def update_AlbumName(self, AlbumName):
+        self._current_album_name = AlbumName.strip()
         self.AlbumName.setText("Playlist Name : " + AlbumName)
 
     def _live_scraper(self):
@@ -2993,8 +3221,58 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # raised SystemExit into qt's excepthook and logged a false crash
         QApplication.quit()
 
+    def save_youtube_links_html(self):
+        """Export found YouTube links to a beautifully styled dark HTML file."""
+        scraper = self._live_scraper()
+        current_links = getattr(scraper, "_youtube_links", []) if scraper else []
+        links_to_save = list(current_links or self._last_youtube_links)
+
+        if not links_to_save:
+            QMessageBox.information(
+                self,
+                "Sin enlaces",
+                "Aún no hay enlaces de YouTube disponibles. Descargá primero una canción o lista para generar los enlaces.",
+            )
+            return
+
+        current_title = (
+            getattr(self, "_current_album_name", "")
+            or self.AlbumName.text().replace("Playlist Name :", "").strip()
+            or "Canciones encontradas en YouTube"
+        )
+        safe_album = sanitize_filename(current_title, allow_spaces=True).strip()
+        default_name = f"{safe_album}.html" if safe_album else "canciones_youtube.html"
+
+        start_dir = os.path.join(self.download_path, default_name) if self.download_path else default_name
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Guardar enlaces de YouTube en HTML",
+            start_dir,
+            "Archivos HTML (*.html);;Todos los archivos (*)",
+        )
+        if not file_path:
+            return
+
+        html_content = generate_links_html(links_to_save, title=current_title)
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            self.statusMsg.setText(f"Enlaces guardados en: {os.path.basename(file_path)}")
+            QMessageBox.information(
+                self,
+                "Exportación exitosa",
+                f"Se guardó la lista con {len(links_to_save)} enlaces en formato HTML oscuro en:\n{file_path}",
+            )
+        except OSError as exc:
+            log.error("error saving youtube links html: %s", exc)
+            QMessageBox.critical(
+                self,
+                "Error al guardar",
+                f"No se pudo guardar el archivo HTML:\n{exc}",
+            )
+
     def Linkedin(self):
-        webbrowser.open("https://www.linkedin.com/in/sunny-patel-30b460204/")
+        self.save_youtube_links_html()
 
 
 # Main
