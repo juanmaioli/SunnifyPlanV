@@ -8,7 +8,9 @@
 ## 🌟 Características Principales
 
 - 🌐 **Interfaz Íntegramente en Español:** Textos, botones, diálogos de ajustes, etiquetas de pistas y mensajes de estado localizados al español.
-- 🪟 **Ventana Única Integrada:** Diseño unificado en un solo marco moderno con panel de descargas y tarjeta de información de pista permanente lado a lado.
+- 🪟 **Ventana Estándar y Movible:** Diseño moderno y movible con barra de título nativa del sistema operativo y tarjeta integrada.
+- 📋 **Pegado Inteligente al Clic:** Al hacer clic en el campo de enlace, limpia el contenido previo y pega automáticamente la URL del portapapeles.
+- 🔔 **Notificaciones de Finalización:** Alerta nativa en la bandeja del sistema (`QSystemTrayIcon`) informando si las descargas finalizaron con éxito o con advertencias.
 - 🎨 **Ícono Oficial de Spotify:** Integración del ícono gráfico de Spotify tanto en la barra de tareas como en la cabecera principal de la ventana.
 - 🌓 **Interfaz Adaptable:** Se sincroniza automáticamente con la paleta de colores del sistema (modo claro y oscuro nativo).
 - 📁 **Nomenclatura Personalizada de Canciones:** Formato `"Artista - Track - Título"` por defecto (`Artist - 01 - Song.mp3`).

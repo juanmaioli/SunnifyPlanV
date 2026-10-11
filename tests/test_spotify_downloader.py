@@ -3766,3 +3766,51 @@ class TestFfmpegPreflight:
             monkeypatch.setattr(sys, "platform", platform)
             with pytest.raises(RuntimeError, match=needle):
                 MusicScraper().download_track_audio("ytsearch1:x", "/tmp/none.mp3")
+
+    def test_tray_notification_on_finished(self, qapp, tmp_path, monkeypatch):
+        from Spotify_Downloader import MainWindow, QSystemTrayIcon
+
+        win = MainWindow()
+        notifications = []
+        monkeypatch.setattr(win.tray_icon, "isSystemTrayAvailable", lambda: True)
+        monkeypatch.setattr(
+            win.tray_icon,
+            "showMessage",
+            lambda title, msg, icon, timeout: notifications.append((title, msg, icon, timeout)),
+        )
+
+        win._last_failed_tracks = []
+        win._notify_download_finished()
+        assert len(notifications) == 1
+        assert notifications[0][0] == "Descarga completada"
+        assert notifications[0][2] == QSystemTrayIcon.MessageIcon.Information
+
+        win._last_failed_tracks = ["Cancion 1"]
+        win._notify_download_finished()
+        assert len(notifications) == 2
+        assert notifications[1][0] == "Descarga finalizada con advertencias"
+        assert notifications[1][2] == QSystemTrayIcon.MessageIcon.Warning
+
+    def test_playlist_link_click_clears_and_pastes_clipboard(self, qapp, monkeypatch):
+        from PyQt6.QtCore import QPointF, Qt
+        from PyQt6.QtGui import QMouseEvent
+        from Spotify_Downloader import MainWindow, QApplication
+
+        win = MainWindow()
+        win.PlaylistLink.setText("texto previo que debe limpiarse")
+
+        # Configurar portapapeles con una URL de Spotify
+        test_url = "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT"
+        clipboard = QApplication.clipboard()
+        clipboard.setText(test_url)
+
+        event = QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            QPointF(5.0, 5.0),
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        win.PlaylistLink.mousePressEvent(event)
+
+        assert win.PlaylistLink.text() == test_url

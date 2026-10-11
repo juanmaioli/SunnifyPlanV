@@ -17,7 +17,7 @@ For the program to work, the playlist URL pattern must follow the format of
 
 from __future__ import annotations
 
-__version__ = "2.8.0"
+__version__ = "2.9.0"
 
 import atexit
 import concurrent.futures
@@ -61,6 +61,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QSystemTrayIcon,
     QVBoxLayout,
 )
 from yt_dlp import YoutubeDL
@@ -2714,18 +2715,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._cancel_event = threading.Event()  # Event for cooperative thread cancellation
 
         # Unificación completa en una sola ventana / tarjeta contenedora
-        self.resize(750, 500)
-        self.centralwidget.resize(750, 500)
+        self.resize(710, 460)
+        self.setFixedSize(710, 460)
+        self.centralwidget.resize(710, 460)
 
-        # 'frame' es ahora la ventana única que contiene toda la interfaz
-        self.frame.setGeometry(QRect(20, 20, 710, 460))
-        self.frame.setGraphicsEffect(
-            QGraphicsDropShadowEffect(blurRadius=25, xOffset=2, yOffset=2)
-        )
+        # 'frame' ocupa toda la ventana principal
+        self.frame.setGeometry(QRect(0, 0, 710, 460))
+        self.Closed.hide()  # La barra de título estándar del sistema ya provee botón de cerrar
 
-        # Reposicionar controles de ventana (cerrar y configuración) en la esquina superior derecha de la ventana única
-        self.Closed.setGeometry(QRect(675, 12, 22, 22))
-        self.SettingsBtn.setGeometry(QRect(645, 12, 22, 22))
+        # Reposicionar control de configuración en la esquina superior derecha
+        self.SettingsBtn.setGeometry(QRect(670, 12, 26, 26))
 
         # Reubicar panel SONGINFORMATION como sección interna derecha de 'frame'
         self.SONGINFORMATION.setParent(self.frame)
@@ -2761,8 +2760,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.author.setGeometry(QRect(57, 40, 260, 16))
 
+        # Configurar icono del sistema para notificaciones
+        tray_icon = getattr(self, "_app_icon", None) or self.windowIcon()
+        self.tray_icon = QSystemTrayIcon(tray_icon, self)
+        if self.tray_icon.isSystemTrayAvailable():
+            self.tray_icon.show()
+
         # El preview ahora está integrado de forma permanente en la GUI
         self.showPreviewCheck.hide()
+
+        # Al hacer clic en el recuadro de la URL: limpiar y pegar automáticamente el portapapeles
+        orig_mouse_press = self.PlaylistLink.mousePressEvent
+
+        def _playlist_link_mouse_press(event):
+            clipboard = QApplication.clipboard()
+            text = clipboard.text().strip() if clipboard else ""
+            if text:
+                self.PlaylistLink.clear()
+                self.PlaylistLink.setText(text)
+                self.PlaylistLink.selectAll()
+            else:
+                self.PlaylistLink.clear()
+            orig_mouse_press(event)
+
+        self.PlaylistLink.mousePressEvent = _playlist_link_mouse_press
 
         self.PlaylistLink.returnPressed.connect(self.on_returnButton)
         self.DownloadBtn.clicked.connect(self.on_returnButton)
@@ -2821,8 +2842,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setStyleSheet(f"""
             QFrame#frame {{
                 background-color: {card_bg};
-                border: 1px solid {mid_color};
-                border-radius: 12px;
+                border: none;
+                border-radius: 0px;
             }}
             QFrame#SONGINFORMATION {{
                 background-color: transparent;
@@ -3129,6 +3150,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self._last_youtube_links = list(yt_links)
         if hasattr(self, "scraper_thread"):
             self.scraper_thread.deleteLater()  # Clean up the thread properly
+        self._notify_download_finished()
+
+    def _notify_download_finished(self):
+        """Show system tray notification when a download batch completes."""
+        try:
+            if hasattr(self, "tray_icon") and self.tray_icon.isSystemTrayAvailable():
+                failed_count = len(self._last_failed_tracks)
+                if failed_count > 0:
+                    title = "Descarga finalizada con advertencias"
+                    msg = f"La descarga finalizó. Hay {failed_count} canción(es) fallida(s)."
+                    icon = QSystemTrayIcon.MessageIcon.Warning
+                else:
+                    title = "Descarga completada"
+                    msg = "¡Todas las canciones se descargaron con éxito!"
+                    icon = QSystemTrayIcon.MessageIcon.Information
+                self.tray_icon.showMessage(title, msg, icon, 4000)
+        except Exception as e:
+            log.debug("Tray notification error: %s", e)
 
     def update_progress(self, message):
         self.statusMsg.setText(message)
@@ -3394,9 +3433,5 @@ if __name__ == "__main__":
     _signal_waker.start(200)
     _signal_waker.timeout.connect(lambda: None)
     Screen = MainWindow()
-    Screen.setFixedHeight(500)
-    Screen.setFixedWidth(750)
-    Screen.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-    Screen.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
     Screen.show()
     sys.exit(app.exec())
