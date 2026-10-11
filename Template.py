@@ -381,7 +381,7 @@ class Ui_MainWindow(object):
         self.label_7.setText(_translate("MainWindow", "Estado   :"))
         self.PlaylistMsg_2.setText(_translate("MainWindow", "Nombre de pista :"))
         self.Select_Home.setText(_translate("MainWindow", "Guardar enlaces de YouTube (HTML)"))
-        self.version.setText(_translate("MainWindow", "V2.9.0"))
+        self.version.setText(_translate("MainWindow", "V2.9.1"))
         self.label_10.setText(_translate("MainWindow", "Contador :"))
         self.CounterLabel.setText(_translate("MainWindow", "Canciones descargadas 0"))
         self.showPreviewCheck.setText(_translate("MainWindow", "Vista previa"))
