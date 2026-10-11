@@ -1,4 +1,4 @@
-# 🎵 Sunnify &middot; Descargador de Playlists de Spotify
+# 🎵 Sunnify Plan V &middot; Descargador de Playlists de Spotify
 
 > **Descargá playlists, álbumes y canciones de Spotify a archivos de audio locales con carátulas y metadatos completos.**  
 > Libre, de código abierto y multiplataforma. Aplicación de escritorio moderna con CLI headless integrado. Sin cuentas ni suscripciones.

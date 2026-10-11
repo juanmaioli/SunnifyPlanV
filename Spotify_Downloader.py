@@ -17,7 +17,7 @@ For the program to work, the playlist URL pattern must follow the format of
 
 from __future__ import annotations
 
-__version__ = "2.9.1"
+__version__ = "2.10.0"
 
 import atexit
 import concurrent.futures
@@ -1897,7 +1897,7 @@ class SettingsDialog(QDialog):
 
     def __init__(self, parent, config: dict):
         super().__init__(parent)
-        self.setWindowTitle("Ajustes de Sunnify")
+        self.setWindowTitle("Ajustes de Sunnify Plan V")
         self.setModal(True)
         # min width so long macOS paths fit; height is sized at the end once hints exist
         self.setMinimumWidth(560)
@@ -2533,7 +2533,7 @@ def generate_links_html(links: list[dict], title: str = "Canciones encontradas e
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{_html.escape(title)} - Sunnify</title>
+  <title>{_html.escape(title)} - Sunnify Plan V</title>
   <style>
     :root {{
       --bg: #0f1117;
@@ -2689,7 +2689,7 @@ def generate_links_html(links: list[dict], title: str = "Canciones encontradas e
       {cards_markup}
     </ul>
     <footer>
-      Generado por Sunnify &middot; Descargador de Spotify a YouTube
+      Generado por Sunnify Plan V &middot; Descargador de Spotify a YouTube
     </footer>
   </div>
 </body>
@@ -2756,7 +2756,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.app_icon_label.setGeometry(QRect(20, 14, 28, 28))
             self.app_icon_label.setPixmap(self._app_icon.pixmap(28, 28))
             self.app_icon_label.setScaledContents(True)
-            self.title.setGeometry(QRect(55, 10, 200, 35))
+            self.title.setGeometry(QRect(55, 10, 240, 35))
             self.title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.author.setGeometry(QRect(57, 40, 260, 16))
 

@@ -370,8 +370,8 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "Sunnify"))
-        self.title.setText(_translate("MainWindow", "Sunnify"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Sunnify Plan V"))
+        self.title.setText(_translate("MainWindow", "Sunnify Plan V"))
         self.Closed.setText(_translate("MainWindow", "X"))
         self.SettingsBtn.setText(_translate("MainWindow", "\u2699"))
         self.DownloadBtn.setText(_translate("MainWindow", "Descargar"))
@@ -381,7 +381,7 @@ class Ui_MainWindow(object):
         self.label_7.setText(_translate("MainWindow", "Estado   :"))
         self.PlaylistMsg_2.setText(_translate("MainWindow", "Nombre de pista :"))
         self.Select_Home.setText(_translate("MainWindow", "Guardar enlaces de YouTube (HTML)"))
-        self.version.setText(_translate("MainWindow", "V2.9.1"))
+        self.version.setText(_translate("MainWindow", "V2.10.0"))
         self.label_10.setText(_translate("MainWindow", "Contador :"))
         self.CounterLabel.setText(_translate("MainWindow", "Canciones descargadas 0"))
         self.showPreviewCheck.setText(_translate("MainWindow", "Vista previa"))
