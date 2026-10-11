@@ -30,7 +30,21 @@
 - **Python 3.10+**
 - **FFmpeg** instalado en el sistema
 
-### 2. 📦 Dependencias
+### 2. 📦 Instalación Rápida con Script (Recomendado)
+
+Podés instalar la aplicación, crear el entorno virtual, configurar los accesos de escritorio e instalar los iconos automáticamente:
+
+```bash
+./INSTALL.sh
+```
+
+Para desinstalarla por completo del sistema:
+
+```bash
+./UNINSTALL.sh
+```
+
+### 3. 🛠️ Instalación Manual
 
 ```bash
 python -m venv .venv
@@ -38,7 +52,7 @@ source .venv/bin/activate
 pip install -r req.txt
 ```
 
-### 3. ▶️ Ejecución
+### 4. ▶️ Ejecución
 
 Para iniciar la aplicación gráfica:
 
