@@ -2942,12 +2942,21 @@ class TestSettingsDialog:
         assert out["download_path"] == "/tmp/sunnify-music"
 
     def test_filename_style_loads_from_config_booleans(self, qapp):
-        """The pick-one style control derives from the two stored booleans."""
+        """The pick-one style control derives from the stored booleans."""
         from Spotify_Downloader import SettingsDialog
 
-        assert SettingsDialog(None, {})._filename_style_cb.currentText() == "Song - Artist"
         assert (
-            SettingsDialog(None, {"artist_first": True})._filename_style_cb.currentText()
+            SettingsDialog(None, {})._filename_style_cb.currentText()
+            == "Artist - Track - Song"
+        )
+        assert (
+            SettingsDialog(None, {"artist_track_title": False})._filename_style_cb.currentText()
+            == "Song - Artist"
+        )
+        assert (
+            SettingsDialog(
+                None, {"artist_track_title": False, "artist_first": True}
+            )._filename_style_cb.currentText()
             == "Artist - Song"
         )
         assert (
@@ -2960,20 +2969,26 @@ class TestSettingsDialog:
     def test_filename_style_maps_back_to_config_booleans(self, qapp):
         from Spotify_Downloader import SettingsDialog
 
-        dlg = SettingsDialog(None, {"artist_first": True, "title_only": False})
+        dlg = SettingsDialog(None, {"artist_first": True, "title_only": False, "artist_track_title": False})
         dlg._filename_style_cb.setCurrentText("Song only")
         out = dlg.result_config()
         assert out["title_only"] is True
-        assert out["artist_first"] is True  # order preference remembered
+        assert out["artist_track_title"] is False
         dlg._filename_style_cb.setCurrentText("Song - Artist")
         out = dlg.result_config()
         assert out["title_only"] is False
         assert out["artist_first"] is False
+        assert out["artist_track_title"] is False
+        dlg._filename_style_cb.setCurrentText("Artist - Track - Song")
+        out = dlg.result_config()
+        assert out["artist_track_title"] is True
 
     def test_filename_preview_tracks_style_and_number(self, qapp):
         from Spotify_Downloader import SettingsDialog
 
         dlg = SettingsDialog(None, {"include_track_number": True})
+        assert dlg._filename_preview.text() == "Artist - 01 - Song.mp3"
+        dlg._filename_style_cb.setCurrentText("Song - Artist")
         assert dlg._filename_preview.text() == "01. Song - Artist.mp3"
         dlg._filename_style_cb.setCurrentText("Song only")
         assert dlg._filename_preview.text() == "01. Song.mp3"

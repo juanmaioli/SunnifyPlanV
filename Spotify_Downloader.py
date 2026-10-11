@@ -17,7 +17,7 @@ For the program to work, the playlist URL pattern must follow the format of
 
 from __future__ import annotations
 
-__version__ = "2.4.3"
+__version__ = "2.5.0"
 
 import atexit
 import concurrent.futures
@@ -39,6 +39,7 @@ from mutagen.id3 import APIC, ID3
 from PyQt6.QtCore import (
     QEasingCurve,
     QPropertyAnimation,
+    QRect,
     QSize,
     Qt,
     QThread,
@@ -296,6 +297,14 @@ SETTINGS = (
         scraper_kwarg="artist_first",
         cli_flag="--artist-first",
         help='name files "Artist - Song" instead of "Song - Artist"',
+    ),
+    _Setting(
+        "artist_track_title",
+        True,
+        "bool",
+        scraper_kwarg="artist_track_title",
+        cli_flag="--artist-track-title",
+        help='name files "Artist - Track - Title" (default)',
     ),
     _Setting(
         "title_only",
@@ -588,6 +597,7 @@ class MusicScraper(QThread):
         audio_quality: str = "192",
         include_track_number: bool = False,
         artist_first: bool = False,
+        artist_track_title: bool = False,
         title_only: bool = False,
         sample_rate: str = "auto",
         loose_match: bool = False,
@@ -604,6 +614,7 @@ class MusicScraper(QThread):
         self.audio_quality = audio_quality if audio_quality in SUPPORTED_QUALITIES else "192"
         self.include_track_number = bool(include_track_number)
         self.artist_first = bool(artist_first)
+        self.artist_track_title = bool(artist_track_title)
         self.title_only = bool(title_only)
         self.sample_rate = sample_rate if sample_rate in SUPPORTED_SAMPLE_RATES else "auto"
         # opt-in: when strict title/artist matching fails, fall back to the
@@ -691,6 +702,11 @@ class MusicScraper(QThread):
         if self.title_only:
             # a title that sanitizes to nothing falls back rather than yield ".mp3"
             stem = sanitized_title or sanitized_artists or "track"
+        elif self.artist_track_title:
+            if track_num is not None:
+                stem = f"{sanitized_artists} - {track_num:02d} - {sanitized_title}"
+            else:
+                stem = f"{sanitized_artists} - {sanitized_title}"
         elif self.artist_first:
             stem = f"{sanitized_artists} - {sanitized_title}"
         else:
@@ -699,7 +715,7 @@ class MusicScraper(QThread):
             stem = f"{stem} [{disambig}]"
         fmt = self.audio_format if self.audio_format in SUPPORTED_FORMATS else "mp3"
         ext = SUPPORTED_FORMATS[fmt]["ext"]
-        if self.include_track_number and track_num is not None:
+        if not self.artist_track_title and self.include_track_number and track_num is not None:
             return f"{track_num:02d}. {stem}.{ext}"
         return f"{stem}.{ext}"
 
@@ -1894,15 +1910,24 @@ class SettingsDialog(QDialog):
         self._include_track_number_cb = QCheckBox()
         self._include_track_number_cb.setChecked(self._config.get("include_track_number", False))
 
-        # the three naming shapes are mutually exclusive, so they present as
-        # one pick-one control; underneath they map to the artist_first and
-        # title_only config booleans the engine and CLI flags already use
+        # the four naming shapes are mutually exclusive, so they present as
+        # one pick-one control; underneath they map to artist_track_title,
+        # artist_first and title_only config booleans
         self._filename_style_cb = QComboBox()
-        self._filename_style_cb.addItems(["Song - Artist", "Artist - Song", "Song only"])
+        self._filename_style_cb.addItems([
+            "Artist - Track - Song",
+            "Artist - Song",
+            "Song - Artist",
+            "Song only",
+        ])
         if self._config.get("title_only", False):
             self._filename_style_cb.setCurrentText("Song only")
         elif self._config.get("artist_first", False):
             self._filename_style_cb.setCurrentText("Artist - Song")
+        elif self._config.get("artist_track_title", True):
+            self._filename_style_cb.setCurrentText("Artist - Track - Song")
+        else:
+            self._filename_style_cb.setCurrentText("Song - Artist")
 
         self._filename_preview = QLabel()
         self._filename_preview.setStyleSheet("font-weight: 600;")
@@ -2125,9 +2150,14 @@ class SettingsDialog(QDialog):
 
     def _update_filename_preview(self) -> None:
         style = self._filename_style_cb.currentText()
-        stem = "Song" if style == "Song only" else style
-        prefix = "01. " if self._include_track_number_cb.isChecked() else ""
-        self._filename_preview.setText(f"{prefix}{stem}.mp3")
+        if style == "Artist - Track - Song":
+            self._filename_preview.setText("Artist - 01 - Song.mp3")
+        elif style == "Song only":
+            prefix = "01. " if self._include_track_number_cb.isChecked() else ""
+            self._filename_preview.setText(f"{prefix}Song.mp3")
+        else:
+            prefix = "01. " if self._include_track_number_cb.isChecked() else ""
+            self._filename_preview.setText(f"{prefix}{style}.mp3")
 
     def result_config(self) -> dict:
         self._config["download_path"] = self._folder_label.text()
@@ -2136,11 +2166,8 @@ class SettingsDialog(QDialog):
         self._config["include_track_number"] = self._include_track_number_cb.isChecked()
         style = self._filename_style_cb.currentText()
         self._config["title_only"] = style == "Song only"
-        if style == "Song only":
-            # keep the stored order preference so switching back remembers it
-            self._config.setdefault("artist_first", False)
-        else:
-            self._config["artist_first"] = style == "Artist - Song"
+        self._config["artist_track_title"] = style == "Artist - Track - Song"
+        self._config["artist_first"] = style == "Artist - Song"
         label_to_value = {v: k for k, v in self._sample_rate_labels.items()}
         self._config["sample_rate"] = label_to_value.get(self._sample_rate_cb.currentText(), "auto")
         self._config["loose_match"] = self._loose_match_cb.isChecked()
@@ -2408,6 +2435,50 @@ class StarPromptNotifier(QDialog):
         self.accept()
 
 
+class FailedDownloadsDialog(QDialog):
+    """Dialog displaying the list of tracks that failed to download."""
+
+    def __init__(self, parent, failed_tracks: list[str]):
+        super().__init__(parent)
+        self.setWindowTitle("Descargas fallidas")
+        self.setMinimumWidth(450)
+        self.setMinimumHeight(320)
+        self._failed_tracks = list(failed_tracks)
+
+        from PyQt6.QtWidgets import (
+            QDialogButtonBox,
+            QLabel,
+            QListWidget,
+            QPushButton,
+            QVBoxLayout,
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(18, 18, 18, 18)
+
+        title = QLabel(f"<b>Canciones que fallaron ({len(self._failed_tracks)}):</b>")
+        layout.addWidget(title)
+
+        self.list_widget = QListWidget()
+        for track in self._failed_tracks:
+            self.list_widget.addItem(track)
+        layout.addWidget(self.list_widget, 1)
+
+        btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        btns.rejected.connect(self.reject)
+
+        copy_btn = btns.addButton("Copiar lista", QDialogButtonBox.ButtonRole.ActionRole)
+        copy_btn.clicked.connect(self._copy_to_clipboard)
+
+        layout.addWidget(btns)
+
+    def _copy_to_clipboard(self):
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText("\n".join(self._failed_tracks))
+
+
 # Main Window
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -2431,12 +2502,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
         self.PlaylistLink.returnPressed.connect(self.on_returnButton)
         self.DownloadBtn.clicked.connect(self.on_returnButton)
-
         self.showPreviewCheck.stateChanged.connect(self.show_preview)
+        self.showPreviewCheck.setChecked(True)
+        self.AddMetaDataCheck.setChecked(True)
 
         self.Closed.clicked.connect(self.exitprogram)
         self.Select_Home.clicked.connect(self.Linkedin)
         self.SettingsBtn.clicked.connect(self.open_settings)
+
+        # Botón para inspeccionar descargas fallidas (inicialmente oculto)
+        from PyQt6.QtWidgets import QPushButton
+        self._last_failed_tracks = []
+        self.failed_btn = QPushButton("⚠️ Ver fallidas (0)", self.frame)
+        self.failed_btn.setGeometry(QRect(20, 315, 280, 26))
+        self.failed_btn.setObjectName("FailedBtn")
+        self.failed_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.failed_btn.clicked.connect(self.open_failed_downloads)
+        self.failed_btn.hide()
 
         # No Album row: the unauthenticated embed endpoints never expose
         # album name, and a missing row beats a permanently blank one.
@@ -2519,6 +2601,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             }}
             QPushButton#DownloadBtn:hover {{
                 opacity: 0.9;
+            }}
+            QPushButton#FailedBtn {{
+                background-color: transparent;
+                color: #e06c75;
+                border: 1px solid #e06c75;
+                border-radius: 6px;
+                font-weight: 600;
+                font-size: 11px;
+            }}
+            QPushButton#FailedBtn:hover {{
+                background-color: rgba(224, 108, 117, 0.15);
             }}
             QCheckBox {{
                 color: {text_fg};
@@ -2700,6 +2793,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._cancel_event = threading.Event()
             self._is_downloading = True
             self.DownloadBtn.setText("Stop")
+            self._last_failed_tracks = []
+            self.failed_btn.hide()
 
             self.scraper_thread = ScraperThread(
                 spotify_url,
@@ -2748,6 +2843,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._is_downloading = False
         self.DownloadBtn.setText("Download")
         self.DownloadBtn.setEnabled(True)
+        scraper = self._live_scraper()
+        if scraper is not None:
+            failed_list = getattr(scraper, "_failed_tracks", []) or []
+            if failed_list:
+                self._last_failed_tracks = list(failed_list)
+                self.failed_btn.setText(f"⚠️ Ver fallidas ({len(self._last_failed_tracks)})")
+                self.failed_btn.show()
         if hasattr(self, "scraper_thread"):
             self.scraper_thread.deleteLater()  # Clean up the thread properly
 
@@ -2812,14 +2914,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def update_counter(self, count):
         scraper = self._live_scraper()
         total = getattr(scraper, "_total_tracks", 0) or 0
-        failed = self._failed_track_count()
+        failed_list = getattr(scraper, "_failed_tracks", []) or []
+        failed = len(failed_list)
+        self._last_failed_tracks = list(failed_list)
+
         # count is "tracks finished", not "tracks saved": a failure ticks it too
         text = f"Songs downloaded {max(0, count - failed)}"
         if total:
             text += f" of {total}"
         if failed:
             text += f" ({failed} failed)"
+            self.failed_btn.setText(f"⚠️ Ver fallidas ({failed})")
+            self.failed_btn.show()
+        else:
+            self.failed_btn.hide()
         self.CounterLabel.setText(text)
+
+    def open_failed_downloads(self):
+        """Open modal dialog showing tracks that failed during the download."""
+        if not self._last_failed_tracks:
+            return
+        dialog = FailedDownloadsDialog(self, self._last_failed_tracks)
+        dialog.exec()
 
     @pyqtSlot(int)
     def update_song_progress(self, progress):
